@@ -11,6 +11,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import models.User;
+import validate.AccountService;
 
 /**
  *
@@ -22,10 +24,34 @@ public class LoginServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        //code to destroy session needed use parameter "logout" from home http req
-        //also need you have successfully logged out if ^^^^
+
+        //checks action attibute if logout continues code within block
+        String logout = request.getParameter("action");
+        if(logout != null && logout.equals("logout")) {
+            HttpSession session = request.getSession();
+            session.invalidate();
+            
+            request.setAttribute("message", 
+                    "You have successfully logged out");
+            
+            getServletContext().getRequestDispatcher("/WEB-INF/login.jsp" )
+                .forward(request, response);
+            return;
+        }
+                
+        //checks if session exists and if it does /url will redirect to home
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            User user = (User) session.getAttribute("user");
+            if (user != null) {
+                response.sendRedirect("/Week5Lab_MyLogin/home");
+                return;
+            }
+        }
+        
         getServletContext().getRequestDispatcher("/WEB-INF/login.jsp" )
             .forward(request, response);
+        
     }
 
     @Override
@@ -35,25 +61,37 @@ public class LoginServlet extends HttpServlet {
         
         String username = request.getParameter("username");
         String password = request.getParameter("password");
+        User user = null; 
         
-        if (username == null || username.equals("") || password == null
-                || password.equals("")) {
+        AccountService validate = new AccountService();
+        if(username == null || username.equals("") || password == null
+           || password.equals("")){
+            request.setAttribute("username", username);
+            request.setAttribute("password", password);
+            request.setAttribute("message", 
+                    "Please enter your username and password");
+            
+            getServletContext().getRequestDispatcher("/WEB-INF/login.jsp" )
+                .forward(request, response);
+            return;
+        } 
+        
+        user = validate.login(username, password);
+        
+        if (user != null) {
+            HttpSession session = request.getSession();
+            session.setAttribute("user", user);
+            response.sendRedirect("/Week5Lab_MyLogin/home");
+        }
+        else {
             request.setAttribute("username", username);
             request.setAttribute("password", password);
             request.setAttribute("message", 
                     "Sorry, invalid username and/or password");
-            
             getServletContext().getRequestDispatcher("/WEB-INF/login.jsp" )
                 .forward(request, response);
-        
-        } 
-        else {
-            HttpSession session = request.getSession();
-            session.setAttribute("username", username);
-            getServletContext().getRequestDispatcher("/WEB-INF/home.jsp" )
-                .forward(request, response);
         }
-                 
+        
         
         //process submission of form
         //validate not empty user pass
